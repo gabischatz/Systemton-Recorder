@@ -1,6 +1,6 @@
-﻿<#
+<#
 Projekt: SystemtonRecorder
-Version 1.78.1:
+Version 1.78.6:
 #>
 
 param(
@@ -198,7 +198,7 @@ public class RecorderToolbarButton : Control
 "@
 } catch {}
 
-$script:AppVersion = 'v1.78.1'
+$script:AppVersion = 'v1.78.6'
 $script:BaseDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 $script:AssetsDir = Join-Path $script:BaseDir 'assets'
 $script:ConfigPath = Join-Path $script:BaseDir 'recorder-config.json'
@@ -831,7 +831,7 @@ function Save-Recordings {
     try {
         $clean = @()
         foreach ($item in @($script:Recordings)) {
-            if (Test-RecordingItemValid $item) { $clean += (Normalize-RecordingItem $item) }
+            if (Test-RecordingItemValid $item) { $n = 0; try { $n = [int](Get-ObjValue $item 'Nummer' 0) } catch { $n = 0 }; if ($n -gt 0) { $clean += (Normalize-RecordingItem $item) } }
         }
 
         if ($clean.Count -eq 0) {
@@ -1661,6 +1661,7 @@ function Refresh-Grid {
     try { $grid.ColumnHeadersVisible = $true; $grid.Visible = $true; $grid.BringToFront(); $filesPanel.BringToFront() } catch {}
     foreach ($rawItem in @($script:Recordings)) {
         if (-not (Test-RecordingItemValid $rawItem)) { continue }
+        try { if ([int](Get-ObjValue $rawItem 'Nummer' 0) -le 0) { continue } } catch {}
         $r = Normalize-RecordingItem $rawItem
         try {
             if (([string](Get-ObjValue $rawItem 'Dauer' '')).Trim() -eq '' -and -not [string]::IsNullOrWhiteSpace([string](Get-ObjValue $r 'Dauer' ''))) {
@@ -3532,6 +3533,9 @@ function Paint-LevelVisualizer {
     if ($startX -lt 0) { $startX = 0 }
 
     $level = [Math]::Min(1.0, ($rawLevel - $noiseGate) / (1.0 - $noiseGate))
+    # Gamma-Boost: WASAPI liefert oft kleine Werte. Ohne Boost sieht man nur 2-3 Segmente.
+    # 0.4 hebt leise/normal laute Signale sichtbar an, ohne echte Spitzen hart abzuschneiden.
+    $level = [Math]::Pow($level, 0.4)
     $tick = (Get-Date).Millisecond / 100.0
 
     $segH = 2
@@ -3545,7 +3549,7 @@ function Paint-LevelVisualizer {
         $shape = 0.28 + ($wave1 * 0.48) + ($wave2 * 0.24)
         if ($shape -gt 1) { $shape = 1 }
 
-        $barH = [int](4 + ($level * $shape * ($hMax - 2)))
+        $barH = [int](2 + ($level * $shape * ($hMax - 1)))
         if ($barH -gt $hMax) { $barH = $hMax }
         if ($barH -lt 2) { $barH = 2 }
 

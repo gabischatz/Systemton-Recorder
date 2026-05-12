@@ -1,0 +1,62 @@
+﻿[
+    {
+        "Nummer":  0,
+        "Status":  "OK",
+        "Dateiname":  "",
+        "Dauer":  "00:00:00",
+        "Groesse":  "",
+        "Kuenstler":  "",
+        "Album":  "",
+        "Jahr":  "",
+        "Pfad":  "",
+        "Erstellt":  ""
+    },
+    {
+        "Nummer":  1,
+        "Status":  "Warnung",
+        "Dateiname":  "Aufnahme_001.wav",
+        "Dauer":  "",
+        "Groesse":  "68 B",
+        "Kuenstler":  "",
+        "Album":  "",
+        "Jahr":  2026,
+        "Pfad":  "C:\\Users\\lugm\\Music\\Systemton-Aufnahmen\\Aufnahme_001.wav",
+        "Erstellt":  "2026-05-12T07:05:49"
+    },
+    {
+        "Nummer":  3,
+        "Status":  "Fertig",
+        "Dateiname":  "Aufnahme_003.wav",
+        "Dauer":  "00:00:14",
+        "Groesse":  "5,30 MB",
+        "Kuenstler":  "",
+        "Album":  "",
+        "Jahr":  2026,
+        "Pfad":  "C:\\Users\\lugm\\Music\\Systemton-Aufnahmen\\Aufnahme_003.wav",
+        "Erstellt":  "2026-05-12T07:28:33"
+    },
+    {
+        "Nummer":  4,
+        "Status":  "Warnung",
+        "Dateiname":  "Aufnahme_004.wav",
+        "Dauer":  "",
+        "Groesse":  "68 B",
+        "Kuenstler":  "",
+        "Album":  "",
+        "Jahr":  2026,
+        "Pfad":  "C:\\Users\\lugm\\Music\\Systemton-Aufnahmen\\Aufnahme_004.wav",
+        "Erstellt":  "2026-05-12T07:35:25"
+    },
+    {
+        "Nummer":  6,
+        "Status":  "Fertig",
+        "Dateiname":  "Aufnahme_006.wav",
+        "Dauer":  "00:00:10",
+        "Groesse":  "3,78 MB",
+        "Kuenstler":  "",
+        "Album":  "",
+        "Jahr":  2026,
+        "Pfad":  "C:\\Users\\lugm\\Music\\Systemton-Aufnahmen\\Aufnahme_006.wav",
+        "Erstellt":  "2026-05-12T07:51:11"
+    }
+]

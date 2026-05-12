@@ -1,0 +1,2 @@
+Optional: Svg.dll kann hier abgelegt werden. Dann kann die App fehlende PNG-Icons aus den eingebetteten SVG-Quellen neu erzeugen.
+Ohne Svg.dll nutzt die App die mitgelieferten PNG/ICO-Dateien.

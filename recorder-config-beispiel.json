@@ -1,0 +1,76 @@
+{
+  "iconDir": "assets",
+  "icons": {
+    "systemSound": {
+      "name": "System-Sound",
+      "file": "icon_system_sound.png",
+      "shortcut": "Alt+S"
+    },
+    "microphone": {
+      "name": "Mikrofon",
+      "file": "icon_microphone.png",
+      "shortcut": "Alt+M"
+    },
+    "start": {
+      "name": "Start",
+      "file": "icon_start.png",
+      "shortcut": "Alt+S"
+    },
+    "pause": {
+      "name": "Pause",
+      "file": "icon_pause.png",
+      "shortcut": "Leertaste"
+    },
+    "resume": {
+      "name": "Weiter",
+      "file": "icon_resume.png",
+      "shortcut": "Leertaste"
+    },
+    "stop": {
+      "name": "Stopp",
+      "file": "icon_stop.png",
+      "shortcut": "Esc"
+    },
+    "files": {
+      "name": "Dateien",
+      "file": "icon_files.png",
+      "shortcut": "Strg+D"
+    },
+    "settings": {
+      "name": "Einstellungen",
+      "file": "icon_settings.png",
+      "shortcut": "Strg+E"
+    },
+    "openFile": {
+      "name": "Zu Datei",
+      "file": "SC.ico",
+      "shortcut": "Strg+Q"
+    },
+    "delete": {
+      "name": "Loeschen",
+      "file": "icon_delete.png",
+      "shortcut": "Strg+L"
+    },
+    "rename": {
+      "name": "Umbenennen",
+      "file": "icon_rename.png",
+      "shortcut": "Strg+U"
+    },
+    "play": {
+      "name": "Spielen",
+      "file": "icon_play.png",
+      "shortcut": "Strg+P"
+    },
+    "folder": {
+      "name": "Ordner waehlen",
+      "file": "icon_folder.png",
+      "shortcut": "Strg+O"
+    },
+    "web": {
+      "name": "Webseite oeffnen",
+      "file": "icon_web.png",
+      "shortcut": "Strg+Alt+Q"
+    }
+  },
+  "appIcon": "app.ico"
+}

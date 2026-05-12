@@ -561,8 +561,38 @@ function Write-Log {
 
 function Ensure-Directory {
     param([string]$Path)
-    if ([string]::IsNullOrWhiteSpace($Path)) { return }
-    if (-not (Test-Path -LiteralPath $Path)) { New-Item -ItemType Directory -Path $Path -Force | Out-Null }
+
+    if ([string]::IsNullOrWhiteSpace($Path)) { return $false }
+
+    try {
+        if (Test-Path -LiteralPath $Path) { return $true }
+
+        New-Item -ItemType Directory -Path $Path -Force -ErrorAction Stop | Out-Null
+        return $true
+    } catch {
+        Write-Log "Ordner konnte nicht erstellt/geöffnet werden: $Path | $($_.Exception.Message)"
+
+        # Typischer Fehler nach fremder Beispiel-Konfiguration:
+        # C:\Users\Benutzer\Music\Systemton-Aufnahmen existiert auf dem echten System nicht
+        # oder darf nicht angelegt werden. Dann auf den echten Musikordner des angemeldeten Benutzers fallen.
+        try {
+            $fallback = Join-Path ([Environment]::GetFolderPath('MyMusic')) 'Systemton-Aufnahmen'
+            if (-not [string]::IsNullOrWhiteSpace($fallback) -and $fallback -ne $Path) {
+                if (-not (Test-Path -LiteralPath $fallback)) {
+                    New-Item -ItemType Directory -Path $fallback -Force -ErrorAction Stop | Out-Null
+                }
+
+                $script:Config.outputDir = $fallback
+                Write-Log "Aufnahmeordner automatisch korrigiert auf: $fallback"
+                try { Save-Config } catch {}
+                return $true
+            }
+        } catch {
+            Write-Log "Fallback-Aufnahmeordner konnte nicht erstellt werden: $($_.Exception.Message)"
+        }
+
+        return $false
+    }
 }
 
 
@@ -713,23 +743,105 @@ function Normalize-RecordingItem {
     }
 }
 
+function Test-RecordingItemValid {
+    param([object]$Item)
+
+    if ($null -eq $Item) { return $false }
+
+    $nummer = 0
+    try { $nummer = [int](Get-ObjValue $Item 'Nummer' 0) } catch { $nummer = 0 }
+
+    $dateiname = [string](Get-ObjValue $Item 'Dateiname' '')
+    $pfad = [string](Get-ObjValue $Item 'Pfad' '')
+
+    # Der alte Default-/Platzhalter-Eintrag hatte Nummer 0 und leere Felder.
+    # Es gibt keine Aufnahme 0. Solche Einträge dürfen nicht angezeigt und nicht gespeichert werden.
+    if ($nummer -le 0 -and [string]::IsNullOrWhiteSpace($dateiname) -and [string]::IsNullOrWhiteSpace($pfad)) {
+        return $false
+    }
+
+    if ([string]::IsNullOrWhiteSpace($dateiname) -and [string]::IsNullOrWhiteSpace($pfad)) {
+        return $false
+    }
+
+    # Wenn ein Pfad angegeben ist, muss die Datei auch existieren.
+    # Sonst wird ein gelöschter/verschobener Eintrag ewig mitgeschleppt.
+    if (-not [string]::IsNullOrWhiteSpace($pfad) -and -not (Test-Path -LiteralPath $pfad)) {
+        return $false
+    }
+
+    return $true
+}
+
+function Remove-InvalidRecordingItems {
+    param([switch]$Save)
+
+    $removed = 0
+    try {
+        $valid = @()
+        foreach ($item in @($script:Recordings)) {
+            if (Test-RecordingItemValid $item) {
+                $valid += $item
+            } else {
+                $removed++
+            }
+        }
+
+        if ($removed -gt 0) {
+            $script:Recordings.Clear() | Out-Null
+            foreach ($item in $valid) { [void]$script:Recordings.Add($item) }
+            Write-Log "Dateiliste bereinigt: $removed ungültige/r Platzhalter- oder Alt-Eintrag entfernt."
+            if ($Save) { Save-Recordings }
+        }
+    } catch {
+        Write-Log "Dateiliste konnte nicht bereinigt werden: $($_.Exception.Message)"
+    }
+
+    return $removed
+}
+
 function Load-Recordings {
     $script:Recordings.Clear() | Out-Null
+    $removed = 0
     try {
         if (Test-Path -LiteralPath $script:IndexPath) {
             $raw = Get-Content -LiteralPath $script:IndexPath -Raw -Encoding UTF8
             if (-not [string]::IsNullOrWhiteSpace($raw)) {
                 foreach ($item in @($raw | ConvertFrom-Json)) {
-                    [void]$script:Recordings.Add((Normalize-RecordingItem $item))
+                    $normalized = Normalize-RecordingItem $item
+                    if (Test-RecordingItemValid $normalized) {
+                        [void]$script:Recordings.Add($normalized)
+                    } else {
+                        $removed++
+                    }
                 }
             }
         }
-    } catch { Write-Log "Aufnahmeindex konnte nicht geladen werden: $($_.Exception.Message)" }
+
+        if ($removed -gt 0) {
+            Write-Log "Aufnahmeindex bereinigt: $removed ungültige/r Eintrag entfernt."
+            Save-Recordings
+        }
+    } catch {
+        Write-Log "Aufnahmeindex konnte nicht geladen werden: $($_.Exception.Message)"
+    }
 }
 
 function Save-Recordings {
-    try { @($script:Recordings) | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $script:IndexPath -Encoding UTF8 }
-    catch { Write-Log "Aufnahmeindex konnte nicht gespeichert werden: $($_.Exception.Message)" }
+    try {
+        $clean = @()
+        foreach ($item in @($script:Recordings)) {
+            if (Test-RecordingItemValid $item) { $clean += (Normalize-RecordingItem $item) }
+        }
+
+        if ($clean.Count -eq 0) {
+            '[]' | Set-Content -LiteralPath $script:IndexPath -Encoding UTF8
+        } else {
+            @($clean) | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $script:IndexPath -Encoding UTF8
+        }
+    } catch {
+        Write-Log "Aufnahmeindex konnte nicht gespeichert werden: $($_.Exception.Message)"
+    }
 }
 
 function Format-Bytes {
@@ -1390,8 +1502,9 @@ function Sync-RecordingsFromFolder {
     $script:IsSyncingRecordingsFromFolder = $true
     try {
         if (-not $script:Config -or [string]::IsNullOrWhiteSpace([string]$script:Config.outputDir)) { return }
-        if (-not (Test-Path -LiteralPath $script:Config.outputDir)) { return }
+        if (-not (Ensure-Directory $script:Config.outputDir)) { return }
 
+        $cleanupCount = Remove-InvalidRecordingItems
         $known = @{}
         foreach ($r in @($script:Recordings)) {
             $p = [string](Get-ObjValue $r 'Pfad' '')
@@ -1426,7 +1539,7 @@ function Sync-RecordingsFromFolder {
             $changed = $true
             Write-Log "Dateiliste: vorhandene Aufnahme aus Ordner ergänzt: $($f.FullName)"
         }
-        if ($changed) { Save-Recordings }
+        if ($changed -or $cleanupCount -gt 0) { Save-Recordings }
     } catch {
         Write-Log "Dateiliste: Ordnerabgleich fehlgeschlagen: $($_.Exception.Message)"
     } finally {
@@ -1547,6 +1660,7 @@ function Refresh-Grid {
     $grid.Rows.Clear()
     try { $grid.ColumnHeadersVisible = $true; $grid.Visible = $true; $grid.BringToFront(); $filesPanel.BringToFront() } catch {}
     foreach ($rawItem in @($script:Recordings)) {
+        if (-not (Test-RecordingItemValid $rawItem)) { continue }
         $r = Normalize-RecordingItem $rawItem
         try {
             if (([string](Get-ObjValue $rawItem 'Dauer' '')).Trim() -eq '' -and -not [string]::IsNullOrWhiteSpace([string](Get-ObjValue $r 'Dauer' ''))) {
@@ -3470,7 +3584,7 @@ $systemVisualizer.Add_Paint({
 
 $timer = New-Object System.Windows.Forms.Timer
 $timer.Interval = 250
-$timer.Add_Tick({ try { if ($script:IsRecording -and $script:Recorder) { $script:NativeLevel = [double]$script:Recorder.Level } } catch { $script:NativeLevel = 0.0 }; Update-StatusLine; $micVisualizer.Invalidate(); $systemVisualizer.Invalidate() })
+$timer.Add_Tick({ try { if ($script:IsRecording -and $script:Recorder) { $script:NativeLevel = [double]$script:Recorder.Level } } catch { $script:NativeLevel = 0.0 }; try { Update-StatusLine; $micVisualizer.Invalidate(); $systemVisualizer.Invalidate() } catch { Write-Log "Timer-Tick Fehler abgefangen: $($_.Exception.Message)" } })
 $timer.Start()
 
 
